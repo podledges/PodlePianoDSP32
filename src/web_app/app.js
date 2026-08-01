@@ -66,6 +66,39 @@ function updateJsonPanel() {
     }, null, 2);
 }
 
+function getCurrentParserScoreContract() {
+    return {
+        songTitle: fileNameText ? (fileNameText.textContent || "Unknown Song") : "Unknown Song",
+        totalPages: pdfDoc ? pdfDoc.numPages : currentSongPages.length,
+        pages: currentSongPages.map(page => ({
+            pageNumber: page.pageNumber,
+            duration: parseFloat((page.duration || 0).toFixed(2)),
+            notes: page.notes.map(n => ({
+                time: parseFloat(n.time.toFixed(3)),
+                note: n.note,
+                dur: parseFloat((n.dur || 0.5).toFixed(3)),
+                hand: n.hand || 'right'
+            }))
+        }))
+    };
+}
+
+function initializeScoreMatchingFromCurrentSongPages() {
+    if (!window.ScoreMatchingIntegration || currentSongPages.length === 0) {
+        return null;
+    }
+
+    const result = window.ScoreMatchingIntegration.initializeScore(getCurrentParserScoreContract());
+    if (result.ok) {
+        addLog(`Score matcher initialized for ${result.score.pages.length} page(s).`, "success");
+    } else {
+        addLog(`Score matcher initialization failed: ${result.error}`, "error");
+    }
+    return result;
+}
+
+window.initializeScoreMatchingFromCurrentSongPages = initializeScoreMatchingFromCurrentSongPages;
+
 // Initialise PDF.js
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -581,6 +614,7 @@ function flattenPages() {
     currentSongNotes.sort((a, b) => a.time - b.time);
     
     updateJsonPanel();
+    initializeScoreMatchingFromCurrentSongPages();
     btnPlayPause.disabled = false;
     btnStop.disabled = false;
 }
@@ -1046,6 +1080,19 @@ btnConnectEsp.addEventListener('click', () => {
                         removeKeyHighlight(note);
                         synthNoteOff(note);
                     }
+                }
+                return;
+            }
+
+            if (typeof event.data === "string") {
+                if (!window.ScoreMatchingIntegration) {
+                    addLog("Received text WebSocket message, but score matching integration is unavailable.", "error");
+                    return;
+                }
+
+                const result = window.ScoreMatchingIntegration.handleTextMessage(event.data);
+                if (result.handled && !result.ok) {
+                    addLog(`Ignored invalid frequency_event packet: ${result.error}`, "error");
                 }
             }
         };
