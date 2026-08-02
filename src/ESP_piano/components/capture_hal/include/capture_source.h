@@ -8,6 +8,10 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "esp_err.h"
+#include "sdkconfig.h"
+
+/** PCM sample rate every capture source runs at (Kconfig: CAPTURE_SAMPLE_RATE_HZ). */
+#define CAPTURE_SAMPLE_RATE_HZ CONFIG_CAPTURE_SAMPLE_RATE_HZ
 
 typedef struct capture_source_t capture_source_t;
 

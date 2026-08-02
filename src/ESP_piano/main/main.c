@@ -3,25 +3,34 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "sdkconfig.h"
+
 #include "board_pins.h"
 #include "startup.h"
-#include "hal/capture_source.h"
-#include "hal/wifi_sta.h"
-#include "hal/ws_stream.h"
-#include "core/esp_hint.h"
-#include "core/ringbuf.h"
-#include "core/pcm_framer.h"
+#include "capture_source.h"
+#include "wifi_sta.h"
+#include "ws_stream.h"
+#include "esp_hint.h"
+#include "ringbuf.h"
+#include "pcm_framer.h"
 
 static const char *TAG = "MAIN";
-#define FIRMWARE_VERSION  "v2.0.0"
+#define FIRMWARE_VERSION  "v2.1.0"
 
-static int16_t s_rb_storage[4096];
+#define RB_CAPACITY 4096   /* must be a power of two (ringbuf_init enforces it) */
+
+static int16_t s_rb_storage[RB_CAPACITY];
 static ringbuf_t s_ringbuf;
 static pcm_framer_t s_framer;
 
 static void esp_hint_log_event(const char *note_event_json, void *ctx) {
     (void)ctx;
     ESP_LOGI("ESP_HINT_EVENT", "%s", note_event_json);
+}
+
+static void ws_status_changed(bool connected, void *ctx) {
+    (void)ctx;
+    startup_set_server_ready(connected);
 }
 
 // capture_task: runs on core 1, feeds ring buffer
@@ -51,7 +60,7 @@ static void stream_task(void *arg) {
     }
 }
 
-extern "C" void app_main(void) {
+void app_main(void) {
     // 1. NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -66,7 +75,7 @@ extern "C" void app_main(void) {
 
     // 3. Boot log
     ESP_LOGI(TAG, "=== Podles DSP Piano %s ===", FIRMWARE_VERSION);
-    ESP_LOGI(TAG, "role=dsp-stream  sample_rate=%d", BOARD_SAMPLE_RATE_HZ);
+    ESP_LOGI(TAG, "role=dsp-stream  sample_rate=%d", CAPTURE_SAMPLE_RATE_HZ);
     ESP_LOGI(TAG, "server_uri=%s", CONFIG_SERVER_URI);
     ESP_LOGI(TAG, "capture_task->core1  stream_task->core0");
 
@@ -75,15 +84,20 @@ extern "C" void app_main(void) {
 
     // 5. WebSocket streamer
     ws_stream_config_t ws_cfg = {
-        .server_uri  = CONFIG_SERVER_URI,
-        .sample_rate = BOARD_SAMPLE_RATE_HZ,
+        .server_uri    = CONFIG_SERVER_URI,
+        .sample_rate   = CAPTURE_SAMPLE_RATE_HZ,
+        .on_status     = ws_status_changed,
+        .on_status_ctx = NULL,
     };
     ESP_ERROR_CHECK(ws_stream_init(&ws_cfg));
 
     // 6. Ring buffer + framer
-    ringbuf_init(&s_ringbuf, s_rb_storage, 4096);
-    pcm_framer_init(&s_framer, BOARD_SAMPLE_RATE_HZ);
-    esp_hint_init(esp_hint_log_event, NULL, BOARD_SAMPLE_RATE_HZ);
+    if (!ringbuf_init(&s_ringbuf, s_rb_storage, RB_CAPACITY)) {
+        ESP_LOGE(TAG, "ringbuf capacity must be a nonzero power of two");
+        abort();
+    }
+    pcm_framer_init(&s_framer, CAPTURE_SAMPLE_RATE_HZ);
+    esp_hint_init(esp_hint_log_event, NULL, CAPTURE_SAMPLE_RATE_HZ);
 
     // 7. Launch pinned tasks
     xTaskCreatePinnedToCore(capture_task, "capture", 4096, NULL, 5, NULL, 1);

@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "board_pins.h"
 #include "esp_adc/adc_continuous.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -14,12 +13,30 @@
 #include "hal/adc_types.h"
 #include "soc/soc_caps.h"
 
+/* Pin/attenuation/sample-rate config comes from this component's Kconfig
+ * (see Kconfig + README for the analog front-end preconditions). */
+#if CONFIG_CAPTURE_ADC_ATTEN_0DB
+#define CAPTURE_ADC_ATTEN ADC_ATTEN_DB_0
+#elif CONFIG_CAPTURE_ADC_ATTEN_2_5DB
+#define CAPTURE_ADC_ATTEN ADC_ATTEN_DB_2_5
+#elif CONFIG_CAPTURE_ADC_ATTEN_6DB
+#define CAPTURE_ADC_ATTEN ADC_ATTEN_DB_6
+#else
+#define CAPTURE_ADC_ATTEN ADC_ATTEN_DB_12
+#endif
+
+#define CAPTURE_ADC_UNIT     ADC_UNIT_1 /* ADC1: radio-immune + DMA-capable */
+#define CAPTURE_ADC_CHANNEL  ((adc_channel_t)CONFIG_CAPTURE_ADC_CHANNEL)
+#define CAPTURE_ADC_BITWIDTH ADC_BITWIDTH_12
+
 static const char *TAG = "CAPTURE_ADC";
 
 typedef struct {
     capture_source_t base;
     adc_continuous_handle_t handle;
     size_t frame_samples;
+    uint8_t *raw;       /* persistent DMA read buffer, sized in adc_configure */
+    uint32_t raw_size;
     bool initialized;
     bool started;
 } capture_adc_source_t;
@@ -55,6 +72,10 @@ static esp_err_t adc_stop_and_delete(capture_adc_source_t *adc)
         adc->frame_samples = 0;
     }
 
+    free(adc->raw);
+    adc->raw = NULL;
+    adc->raw_size = 0;
+
     return result;
 }
 
@@ -88,17 +109,17 @@ static esp_err_t adc_configure(capture_adc_source_t *adc, size_t n_samples)
     }
 
     adc_continuous_config_t digital_configuration = {
-        .sample_freq_hz = BOARD_SAMPLE_RATE_HZ,
+        .sample_freq_hz = CAPTURE_SAMPLE_RATE_HZ,
         .conv_mode = ADC_CONV_SINGLE_UNIT_1,
         .format = ADC_DIGI_OUTPUT_FORMAT_TYPE1,
         .pattern_num = 1,
     };
 
     adc_digi_pattern_config_t adc_pattern = {
-        .atten = BOARD_PIEZO_ADC_ATTEN,
-        .channel = BOARD_PIEZO_ADC_CHANNEL,
-        .unit = BOARD_PIEZO_ADC_UNIT,
-        .bit_width = BOARD_PIEZO_ADC_BITWIDTH,
+        .atten = CAPTURE_ADC_ATTEN,
+        .channel = CAPTURE_ADC_CHANNEL,
+        .unit = CAPTURE_ADC_UNIT,
+        .bit_width = CAPTURE_ADC_BITWIDTH,
     };
     digital_configuration.adc_pattern = &adc_pattern;
 
@@ -107,6 +128,13 @@ static esp_err_t adc_configure(capture_adc_source_t *adc, size_t n_samples)
         (void)adc_stop_and_delete(adc);
         return err;
     }
+
+    adc->raw = (uint8_t *)malloc(conv_frame_size);
+    if (adc->raw == NULL) {
+        (void)adc_stop_and_delete(adc);
+        return ESP_ERR_NO_MEM;
+    }
+    adc->raw_size = conv_frame_size;
 
     adc->frame_samples = n_samples;
     return ESP_OK;
@@ -151,11 +179,8 @@ static esp_err_t adc_read(capture_source_t *self, int16_t *out, size_t n_samples
         adc->started = true;
     }
 
-    const uint32_t raw_size = (uint32_t)(n_samples * SOC_ADC_DIGI_RESULT_BYTES);
-    uint8_t *raw = (uint8_t *)malloc(raw_size);
-    if (raw == NULL) {
-        return ESP_ERR_NO_MEM;
-    }
+    uint8_t *raw = adc->raw;
+    const uint32_t raw_size = adc->raw_size;
 
     uint32_t total_bytes = 0;
     while (total_bytes < raw_size) {
@@ -167,11 +192,9 @@ static esp_err_t adc_read(capture_source_t *self, int16_t *out, size_t n_samples
             &bytes_read,
             portMAX_DELAY);
         if (err != ESP_OK) {
-            free(raw);
             return err;
         }
         if (bytes_read == 0) {
-            free(raw);
             return ESP_ERR_TIMEOUT;
         }
         total_bytes += bytes_read;
@@ -190,7 +213,6 @@ static esp_err_t adc_read(capture_source_t *self, int16_t *out, size_t n_samples
         out[i] = clamp_int16(centered * 32767 / 2048);
     }
 
-    free(raw);
     return ESP_OK;
 }
 
@@ -212,6 +234,8 @@ static capture_adc_source_t s_adc_source = {
     .base = { adc_init, adc_read, adc_deinit },
     .handle = NULL,
     .frame_samples = 0,
+    .raw = NULL,
+    .raw_size = 0,
     .initialized = false,
     .started = false,
 };

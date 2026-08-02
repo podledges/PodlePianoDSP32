@@ -1,6 +1,8 @@
 #include "esp_hint.h"
 
-#include "board_pins.h"
+#include "sdkconfig.h"
+
+#define HINT_DEFAULT_SAMPLE_RATE 16000
 
 #ifdef CONFIG_ESP_HINT_ENABLED
 
@@ -18,7 +20,7 @@
 static const char *TAG = "ESP_HINT";
 static esp_hint_cb_t s_cb;
 static void *s_ctx;
-static uint32_t s_sample_rate = BOARD_SAMPLE_RATE_HZ;
+static uint32_t s_sample_rate = HINT_DEFAULT_SAMPLE_RATE;
 static float s_window[HINT_FFT_SIZE];
 static float s_fft_buf[HINT_FFT_SIZE * 2];
 static int16_t s_pcm_buf[HINT_FFT_SIZE];
@@ -29,7 +31,7 @@ void esp_hint_init(esp_hint_cb_t cb, void *ctx, uint32_t sample_rate)
 {
     s_cb = cb;
     s_ctx = ctx;
-    s_sample_rate = (sample_rate > 0) ? sample_rate : BOARD_SAMPLE_RATE_HZ;
+    s_sample_rate = (sample_rate > 0) ? sample_rate : HINT_DEFAULT_SAMPLE_RATE;
     s_fill = 0;
     s_seq = 0;
 

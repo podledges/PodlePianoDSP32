@@ -1,5 +1,15 @@
 # Salvage Map — what to take into the cleanslate project
 
+> **2026-08-02 update — firmware modularization DONE.** The four planned
+> ESP-IDF packages (plus `wifi_sta` and `esp_hint`) now exist as
+> self-contained components under `src/ESP_piano/components/`, with the
+> day-one firmware fixes applied (ringbuf C11 atomics + pow2 enforcement,
+> Wi-Fi Kconfig entries, header `_Static_assert`, persistent ADC DMA buffer,
+> ws_streamer decoupled from the app via a status callback). Old
+> `main/core|hal` paths referenced below are historical; see
+> `src/ESP_piano/components/README.md` for the import guide.
+> Python/JS packaging is still to-do.
+
 Full-repo audit (2026-08-02). Verdicts: **STEAL** = lift nearly as-is,
 **MAYBE** = take with fixes, **SKIP** = rewrite or drop.
 Measured state: firmware host tests pass by design (plain `assert`, no Unity);

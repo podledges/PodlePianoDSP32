@@ -39,7 +39,7 @@ TEST(ringbuf_basic_round_trip)
     ringbuf_t rb;
     int16_t out = 0;
 
-    ringbuf_init(&rb, storage, 8);
+    assert(ringbuf_init(&rb, storage, 8));
     assert(ringbuf_available(&rb) == 0);
     assert(ringbuf_push(&rb, 123));
     assert(ringbuf_available(&rb) == 1);
@@ -49,13 +49,13 @@ TEST(ringbuf_basic_round_trip)
     assert(!ringbuf_pop(&rb, &out));
 }
 
-TEST(ringbuf_overflow_drops_oldest)
+TEST(ringbuf_overflow_drops_newest)
 {
     int16_t storage[8];
     ringbuf_t rb;
     int16_t out = 0;
 
-    ringbuf_init(&rb, storage, 8);
+    assert(ringbuf_init(&rb, storage, 8));
     for (int16_t i = 1; i <= 8; i++) {
         assert(ringbuf_push(&rb, i));
     }
@@ -64,12 +64,26 @@ TEST(ringbuf_overflow_drops_oldest)
     assert(ringbuf_dropped(&rb) == 1);
     assert(ringbuf_available(&rb) == 8);
 
-    for (int16_t expected = 2; expected <= 9; expected++) {
+    for (int16_t expected = 1; expected <= 8; expected++) {
         assert(ringbuf_pop(&rb, &out));
         assert(out == expected);
     }
 
     assert(!ringbuf_pop(&rb, &out));
+}
+
+TEST(ringbuf_init_rejects_non_power_of_two)
+{
+    int16_t storage[6];
+    int16_t storage8[8];
+    ringbuf_t rb;
+
+    assert(!ringbuf_init(&rb, storage, 6));
+    assert(!ringbuf_push(&rb, 1));
+    assert(ringbuf_dropped(&rb) == 1);
+
+    assert(ringbuf_init(&rb, storage8, 8));
+    assert(ringbuf_push(&rb, 1));
 }
 
 TEST(ringbuf_index_wrap_fill_drain_fill)
@@ -78,7 +92,7 @@ TEST(ringbuf_index_wrap_fill_drain_fill)
     ringbuf_t rb;
     int16_t out = 0;
 
-    ringbuf_init(&rb, storage, 4);
+    assert(ringbuf_init(&rb, storage, 4));
     for (int16_t i = 0; i < 4; i++) {
         assert(ringbuf_push(&rb, i));
     }
@@ -184,7 +198,8 @@ TEST(pcm_framer_seq_wraps)
 int main(void)
 {
     RUN(ringbuf_basic_round_trip);
-    RUN(ringbuf_overflow_drops_oldest);
+    RUN(ringbuf_overflow_drops_newest);
+    RUN(ringbuf_init_rejects_non_power_of_two);
     RUN(ringbuf_index_wrap_fill_drain_fill);
     RUN(pcm_framer_emits_after_exactly_320_samples);
     RUN(pcm_framer_frame_seq_first_and_second);

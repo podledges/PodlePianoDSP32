@@ -12,7 +12,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
-#include "startup.h"
 
 #define WS_STREAM_QUEUE_DEPTH 8
 #define WS_STREAM_MAX_FRAME_BYTES 2048
@@ -33,6 +32,15 @@ static ws_stream_metrics_t s_metrics;
 static portMUX_TYPE s_metrics_lock = portMUX_INITIALIZER_UNLOCKED;
 static uint32_t s_hello_seq;
 static bool s_client_started;
+static ws_stream_status_cb_t s_status_cb;
+static void *s_status_ctx;
+
+static void ws_stream_notify_status(bool connected)
+{
+    if (s_status_cb != NULL) {
+        s_status_cb(connected, s_status_ctx);
+    }
+}
 
 static bool ws_stream_start_client_if_needed(void)
 {
@@ -115,16 +123,16 @@ static void ws_stream_event_handler(void *handler_args, esp_event_base_t base,
         ws_stream_metrics_inc_reconnects();
         ESP_LOGI(TAG, "WebSocket connected");
         ws_stream_send_hello();
-        startup_set_server_ready(true);
+        ws_stream_notify_status(true);
         break;
 
     case WEBSOCKET_EVENT_DISCONNECTED:
-        startup_set_server_ready(false);
+        ws_stream_notify_status(false);
         ESP_LOGW(TAG, "WebSocket disconnected; client will reconnect");
         break;
 
     case WEBSOCKET_EVENT_ERROR:
-        startup_set_server_ready(false);
+        ws_stream_notify_status(false);
         ESP_LOGE(TAG, "WebSocket error");
         break;
 
@@ -176,6 +184,9 @@ esp_err_t ws_stream_init(const ws_stream_config_t *cfg)
     }
 
     (void)cfg->sample_rate;
+
+    s_status_cb = cfg->on_status;
+    s_status_ctx = cfg->on_status_ctx;
 
     s_tx_queue = xQueueCreate(WS_STREAM_QUEUE_DEPTH, sizeof(ws_frame_t));
     if (s_tx_queue == NULL) {
@@ -253,9 +264,4 @@ ws_stream_metrics_t ws_stream_get_metrics(void)
     portEXIT_CRITICAL(&s_metrics_lock);
 
     return metrics;
-}
-
-void ws_stream_on_server_ready(void)
-{
-    startup_set_server_ready(true);
 }

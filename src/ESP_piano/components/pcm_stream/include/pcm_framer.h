@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../../../contracts/include/audio_stream_v1.h"
+#include "audio_stream_v1.h"
 
 #define FRAMER_CHUNK_SAMPLES  320   /* 20ms at 16kHz */
 #define FRAMER_BUF_SIZE       (ASV1_HEADER_SIZE + FRAMER_CHUNK_SAMPLES * 2)

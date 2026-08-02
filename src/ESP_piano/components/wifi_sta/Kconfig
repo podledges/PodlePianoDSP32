@@ -1,0 +1,16 @@
+menu "Wi-Fi Station"
+
+    config WIFI_SSID
+        string "Wi-Fi SSID"
+        default ""
+        help
+            SSID of the access point to join. Set per venue via menuconfig;
+            sdkconfig is gitignored, so real credentials never land in git.
+
+    config WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+        help
+            WPA2 password for the access point. Leave empty for open networks.
+
+endmenu

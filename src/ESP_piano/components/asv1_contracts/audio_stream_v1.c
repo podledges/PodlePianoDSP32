@@ -1,8 +1,11 @@
-/* FROZEN - mirrors contracts/include/audio_stream_v1.h and contracts/audio_stream_v1.py */
+/* FROZEN - mirrors include/audio_stream_v1.h and src/contracts/audio_stream_v1.py */
 
 #include "audio_stream_v1.h"
 
 #include <string.h>
+
+_Static_assert(sizeof(asv1_header_t) == ASV1_HEADER_SIZE,
+               "asv1_header_t must pack to exactly ASV1_HEADER_SIZE bytes");
 
 /* This contract is little-endian. Host x86 and the ESP32-S3 target are little-endian. */
 

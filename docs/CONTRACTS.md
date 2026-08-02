@@ -30,7 +30,7 @@ Total audio frame size is `26 + pcm_len * 2` bytes.
 | `0x01` | `hello` | Standard header with `pcm_len=0`, followed by a 16-byte ASCII `session_id` padded with `0x00`. Total size is 42 bytes. |
 | `0x02` | `goodbye` | Standard header with `pcm_len=0` and no extra payload. |
 
-The C encoder is in `contracts/audio_stream_v1.c` with declarations in `contracts/include/audio_stream_v1.h`. The Python mirror is `contracts/audio_stream_v1.py`. The golden binary fixture is `contracts/fixtures/golden_audio_frame.bin`.
+The C encoder is the `asv1_contracts` ESP-IDF component: `src/ESP_piano/components/asv1_contracts/audio_stream_v1.c` with declarations in `src/ESP_piano/components/asv1_contracts/include/audio_stream_v1.h`. The Python mirror is `src/contracts/audio_stream_v1.py`. The golden binary fixture is `src/contracts/fixtures/golden_audio_frame.bin`.
 
 ## note_events_v1
 
@@ -48,7 +48,7 @@ The C encoder is in `contracts/audio_stream_v1.c` with declarations in `contract
 | `session_id` | string | Always | Current stream session identifier. |
 | `seq` | integer | `note_on`, `note_off`, `snapshot` | Monotonic event sequence within the session. |
 
-The Python dataclass is `contracts/note_events_v1.py`. The draft-7 schema is `contracts/note_events_v1_schema.json`. The golden JSON fixture is `contracts/fixtures/golden_note_event.json`.
+The Python dataclass is `src/contracts/note_events_v1.py`. The draft-7 schema is `src/contracts/note_events_v1_schema.json`. The golden JSON fixture is `src/contracts/fixtures/golden_note_event.json`.
 
 ## Note Semantics
 
@@ -63,7 +63,7 @@ A reconnect starts a new session. The server/firmware pair must use a new `sessi
 Regenerate and verify the frozen fixtures with:
 
 ```powershell
-python contracts/fixtures/generate_golden.py
+python src/contracts/fixtures/generate_golden.py
 ```
 
 Successful regeneration prints:

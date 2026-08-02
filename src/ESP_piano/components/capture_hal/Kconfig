@@ -1,0 +1,38 @@
+menu "Capture HAL"
+
+    config CAPTURE_SAMPLE_RATE_HZ
+        int "PCM sample rate (Hz)"
+        default 16000
+        help
+            Continuous ADC sample rate. Must match what the receiving server
+            expects (audio_stream_v1 carries it per frame). The analog
+            front-end's RC anti-alias filter must cut off below half this
+            rate (< 8 kHz at the 16 kHz default).
+
+    config CAPTURE_ADC_CHANNEL
+        int "ADC1 channel for the piezo input"
+        range 0 9
+        default 0
+        help
+            ADC1 channel number. On ESP32-S3, channel 0 = GPIO1.
+            Avoid strapping pins (GPIO0/3/45/46), USB (GPIO19/20),
+            console UART0 (GPIO43/44), and flash/PSRAM pins (GPIO26-37).
+
+    choice CAPTURE_ADC_ATTEN_CHOICE
+        prompt "ADC attenuation"
+        default CAPTURE_ADC_ATTEN_12DB
+        help
+            12 dB gives the full 0-3.1 V input range, matching a piezo
+            front-end biased to mid-rail (~1.65 V) and clamped to the rails.
+
+        config CAPTURE_ADC_ATTEN_0DB
+            bool "0 dB (0 - 0.95 V)"
+        config CAPTURE_ADC_ATTEN_2_5DB
+            bool "2.5 dB (0 - 1.25 V)"
+        config CAPTURE_ADC_ATTEN_6DB
+            bool "6 dB (0 - 1.75 V)"
+        config CAPTURE_ADC_ATTEN_12DB
+            bool "12 dB (0 - 3.1 V)"
+    endchoice
+
+endmenu
