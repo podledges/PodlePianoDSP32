@@ -1,0 +1,26 @@
+gitignore# ESP-IDF
+build/
+sdkconfig.old
+*.bin
+*.elf
+*.map
+managed_components/
+dependencies.lock
+
+# KiCad
+*-backups/
+*.kicad_prl
+*.bak
+fp-info-cache
+~*.lck
+_autosave-*
+
+# Editor / OS
+.vscode/
+.DS_Store
+.history/
+
+__pycache__/
+*.pyc
+*.pyo
+.venv*/
