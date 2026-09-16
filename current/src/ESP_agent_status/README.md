@@ -14,7 +14,7 @@ There is no animation or periodic repaint. The initial state is `working`.
 
 ## Build and offline check
 
-Use an ESP-IDF 5.x shell from this folder:
+Use an ESP-IDF v5.5.2 shell (the verified SDK version) from this folder:
 
 ```sh
 idf.py set-target esp32s3
@@ -32,8 +32,7 @@ This exact offline command passed with the sibling flake's ESP-IDF v5.5.2, produ
 The parser has a dependency-free host check:
 
 ```sh
-cd tests
-./run_host_check.sh
+(cd tests && ./run_host_check.sh)
 ```
 
 For an offline command-to-frame check (Python 3 and a host C compiler only):
