@@ -21,7 +21,13 @@ idf.py set-target esp32s3
 idf.py build
 ```
 
-This repository does not currently provide a project-local ESP-IDF environment. PodlESP's Nix patterns may be reused as an environment reference, but this app remains owned here.
+Alternatively, from this repository's root, reuse the sibling PodlESP Nix development shell without moving app ownership:
+
+```sh
+nix develop --offline --no-write-lock-file /home/podles/fleet/firstmate/projects/PodlESP --command bash -c 'cd current/src/ESP_agent_status && export IDF_COMPONENT_MANAGER=0 CMAKE_BUILD_PARALLEL_LEVEL=2 && idf.py set-target esp32s3 && idf.py build'
+```
+
+This exact offline command passed with the sibling flake's ESP-IDF v5.5.2, producing the ESP32-S3 application, bootloader, and partition table. It requires the flake inputs and toolchain to already be cached in Nix. Component downloads are disabled; no hardware is accessed. Build success establishes SDK compatibility, not physical-board compatibility.
 
 The parser has a dependency-free host check:
 
@@ -29,6 +35,14 @@ The parser has a dependency-free host check:
 cd tests
 ./run_host_check.sh
 ```
+
+For an offline command-to-frame check (Python 3 and a host C compiler only):
+
+```sh
+python3 tests/run_app_host_check.py /absolute/path/to/evidence
+```
+
+This runs the unchanged application loop with host stdin and mocked ESP-IDF boundaries. It checks state transitions, aliases, invalid/overlong complete lines, and no repaint for repeated states, then writes `status-frames.png` from the actual LCD pixel payloads and `command-transcript.txt`. It does not verify the ESP-IDF build, USB FIFO timing, DMA, panel initialization, or physical wiring.
 
 This task does not authorize flashing, resetting, probing, or opening a hardware serial session.
 
