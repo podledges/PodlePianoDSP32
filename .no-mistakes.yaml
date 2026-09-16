@@ -1,0 +1,3 @@
+# This repository intentionally has no hosted CI. Local validation remains
+# owned by the no-mistakes review, test, document, and lint gates.
+no_ci: true
